@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { dashboard, getQuiz, getStructure, listQuizzes, listStructures, submitQuiz, toggleBookmark } from '../controllers/userController.js';
+import { requireAuth } from '../middleware/auth.js';
+const router = Router();
+router.get('/structures', listStructures);
+router.get('/structures/:id', getStructure);
+router.get('/quizzes', listQuizzes);
+router.get('/quizzes/:id', getQuiz);
+router.post('/quizzes/:id/submit', requireAuth, submitQuiz);
+router.put('/bookmarks/:id', requireAuth, toggleBookmark);
+router.get('/dashboard', requireAuth, dashboard);
+export default router;
