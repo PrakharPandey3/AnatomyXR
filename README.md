@@ -2,7 +2,6 @@
 
 AnatomyXR is a full-stack learning prototype for exploring selected heart structures in an interactive 3D scene, reading concise anatomy notes, completing quizzes, and saving learning progress. It is designed as an end-term software project with complete workflows rather than a static landing page.
 
-> **Important educational limitation:** the initial heart is a procedural illustrative model built from simple 3D geometry. It is not a clinically accurate anatomical model and must not be used for diagnosis, treatment, or clinical training. Anatomy descriptions are educational summaries and should be checked against authoritative anatomy references. A next iteration can replace the illustrative model with a properly licensed GLB/GLTF anatomical asset.
 
 ## Problem statement
 Medical and anatomy learners often switch between static diagrams, notes, and quizzes. AnatomyXR brings a small set of interactive structure exploration and practice workflows into one browser-based learning lab.
