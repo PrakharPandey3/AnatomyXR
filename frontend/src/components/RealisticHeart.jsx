@@ -3,32 +3,40 @@ import React, { Suspense, useEffect, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 
-// Connect the structure IDs in App.jsx to likely GLB mesh names.
-// These aliases may need adjusting after inspecting your actual model.
+// Map actual GLB mesh names to the structure IDs used by App.jsx.
 const STRUCTURE_ALIASES = {
-  "right-atrium": ["rightatrium", "atriumright", "atrium_r"],
-  "right-ventricle": ["rightventricle", "ventricleright", "ventricle_r"],
-  "left-atrium": ["leftatrium", "atriumleft", "atrium_l"],
-  "left-ventricle": ["leftventricle", "ventricleleft", "ventricle_l"],
-  aorta: ["aorta", "aorticarch"],
-  "pulmonary-artery": ["pulmonarytrunk", "pulmonaryartery"],
-  "vena-cava": ["venacava", "superiorvenacava", "inferiorvenacava", "ivc", "svc"],
-  "pulmonary-veins": ["pulmonaryvein"],
+  "right-atrium": ["right-atrium"],
+  "left-atrium": ["left-atrium"],
+  "right-ventricle": ["right-ventricle"],
+  "left-ventricle": ["left-ventricle"],
+  aorta: ["ascending-aorta", "aortic-arch", "aorta"],
+  "pulmonary-artery": ["pulmonary-trunk", "pulmonary-artery"],
+  "vena-cava": [
+    "superior-vena-cava",
+    "inferior-vena-cava",
+    "vena-cava",
+  ],
+  "pulmonary-veins": ["pulmonary-veins", "pulmonary-vein"],
+
+  // Additional model meshes.
+  "left-coronary": ["left-coronary"],
+  "right-coronary": ["right-coronary"],
+  "ventricular-wall": ["ventricular-wall"],
 };
 
 function normalizeName(value = "") {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-function matchesAlias(meshName, aliases = []) {
-  const name = normalizeName(meshName);
-  return aliases.some((alias) => name.includes(normalizeName(alias)));
-}
-
 function getStructureId(meshName) {
-  for (const [id, aliases] of Object.entries(STRUCTURE_ALIASES)) {
-    if (matchesAlias(meshName, aliases)) return id;
+  const name = normalizeName(meshName);
+
+  for (const [structureId, aliases] of Object.entries(STRUCTURE_ALIASES)) {
+    if (aliases.some((alias) => name === normalizeName(alias))) {
+      return structureId;
+    }
   }
+
   return null;
 }
 
@@ -37,34 +45,15 @@ function isChamber(meshName) {
 }
 
 function isVessel(meshName) {
-  return /aorta|artery|arteries|vein|veins|vena|cava|vessel|trunk/i.test(meshName);
+  return /aorta|artery|coronary|vein|vena|cava|vessel|trunk/i.test(
+    meshName
+  );
 }
 
 function HeartModel({ selectedId, onSelect, layers }) {
   const { scene } = useGLTF("/models/heart.glb");
 
-  useEffect(() => {
-    console.log("=== HEART MODEL HIERARCHY ===");
-
-    scene.traverse((object) => {
-      console.log({
-        name: object.name,
-        type: object.type,
-        isMesh: object.isMesh,
-        children: object.children.length,
-        geometryGroups: object.isMesh
-          ? object.geometry.groups.length
-          : undefined,
-        materialCount: object.isMesh
-          ? (Array.isArray(object.material)
-            ? object.material.length
-            : 1)
-          : undefined,
-      });
-    });
-  }, [scene]);
-
-  // Clone the scene and materials before changing highlight colors.
+  // Clone materials so highlighting doesn't modify cached GLTF materials.
   const model = useMemo(() => {
     const cloned = scene.clone(true);
 
@@ -89,34 +78,40 @@ function HeartModel({ selectedId, onSelect, layers }) {
     model.traverse((object) => {
       if (!object.isMesh) return;
 
+      const name = object.name || "";
+      const structureId = getStructureId(name);
+
       foundMeshes.push({
-        name: object.name || "(unnamed mesh)",
-        structureId: getStructureId(object.name || ""),
+        name: name || "(unnamed mesh)",
+        structureId,
       });
 
-      const chamber = isChamber(object.name || "");
-      const vessel = isVessel(object.name || "");
+      // Respect the visibility toggles.
+      const chamber = isChamber(name);
+      const vessel = isVessel(name);
 
-      // Only hide meshes that can be identified confidently by name.
-      if (chamber && !layers.chambers) object.visible = false;
-      else if (vessel && !layers.vessels) object.visible = false;
-      else object.visible = true;
+      object.visible =
+        !(chamber && !layers.chambers) &&
+        !(vessel && !layers.vessels);
 
       const materials = Array.isArray(object.material)
         ? object.material
         : [object.material];
 
-      const selected = getStructureId(object.name || "") === selectedId;
+      const selected =
+        structureId !== null &&
+        (structureId === selectedId ||
+          (structureId === "aorta" &&
+            ["ascending-aorta", "aortic-arch"].includes(selectedId)));
 
       materials.forEach((material) => {
         if (!material) return;
 
-        if ("emissive" in material) {
+        if (material.emissive) {
           material.emissive.set(selected ? "#32e6c0" : "#000000");
           material.emissiveIntensity = selected ? 0.7 : 0;
+          material.needsUpdate = true;
         }
-
-        material.needsUpdate = true;
       });
     });
 
@@ -141,8 +136,8 @@ function HeartModel({ selectedId, onSelect, layers }) {
   return (
     <primitive
       object={model}
-      scale={1.5}
-      position={[0, -0.5, 0]}
+      scale={0.9}
+      position={[0, -0.2, 0]}
       onClick={handleMeshClick}
     />
   );
@@ -150,12 +145,12 @@ function HeartModel({ selectedId, onSelect, layers }) {
 
 export default function RealisticHeart({
   selectedId = "left-ventricle",
-  onSelect = () => { },
+  onSelect = () => {},
   layers = { chambers: true, vessels: true },
 }) {
   return (
     <div style={{ width: "100%", height: "100%", minHeight: 420 }}>
-      <Canvas camera={{ position: [0, 0, 4], fov: 45 }}>
+      <Canvas camera={{ position: [0, 0, 7], fov: 45 }}>
         <color attach="background" args={["#101920"]} />
         <ambientLight intensity={1.5} />
         <directionalLight position={[3, 4, 5]} intensity={2} />
