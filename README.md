@@ -3,6 +3,7 @@
 AnatomyXR is a full-stack learning prototype for exploring selected heart structures in an interactive 3D scene, reading concise anatomy notes, completing quizzes, and saving learning progress. It is designed as an end-term software project with complete workflows rather than a static landing page.
 
 Live Demo: https://anatomy-xr.vercel.app/
+Video Explanation: https://drive.google.com/file/d/12XU19tPVQMGuPnicr3SrFZjLBDCpGzJO/view?usp=sharing
 
 
 ## Problem statement
